@@ -94,6 +94,14 @@ methods
         J = setdiff(idx(any(J,1)), I);
     end
     
+    function H = getH(obj)
+        % Returns matrix of boundaries as N-by-N polynomial matrix. No
+        % further properties guaranteed.
+        
+        H = obj.H;
+    end
+        
+    
     function obj = subs(obj, old, new)
         % See SUBS.
         
