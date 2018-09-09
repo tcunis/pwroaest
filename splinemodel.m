@@ -10,13 +10,15 @@ classdef splinemodel
 %
 %%    
 
-properties
+properties (Access=protected)
     % adjacence matrix
     adj;
     
     % boundary condition matrix
     H;
-    
+end
+   
+properties (Access=public)
     % spline functions
     f;
 end
@@ -25,9 +27,14 @@ methods
     function obj = splinemodel(varargin)
         % Creates a new spline model.
         
-        obj.f = varargin;
-        obj.adj = false(nargin);
-        obj.H = mpvar('h', [nargin nargin]);
+        if length(varargin) == 1 && isnumeric(varargin{1})
+            obj.f = cell(1,varargin{1});
+        else
+            obj.f = varargin;
+        end
+        
+        obj.adj = false(length(obj.f));
+        obj.H = mpvar('h', size(obj.adj));
         
         obj.H(:,:) = 0;
     end
@@ -88,16 +95,27 @@ methods
     end
     
     function obj = subs(obj, old, new)
+        % See SUBS.
+        
         obj.H = subs(obj.H, old, new);
         obj.f = cellfun(@(f) subs(f, old, new), obj.f, 'UniformOutput', false);
     end
     
     function x = double(obj)
+        % See DOUBLE.
+        
         I = all(double(obj.H) <= 0, 2);
         x = double([obj.f{I}]);
     end
     
+    function L = length(obj)
+        % See LENGTH.
+        L = length(obj.adj);
+    end
+    
     function obj = subsasgn(obj,s,varargin)
+        % See SUBSASGN.
+        
         if length(s) == 1 && strcmp(s.type, '()')
             obj = obj.set_adjacent(s.subs{1}, s.subs{2}, varargin{:});
         else
