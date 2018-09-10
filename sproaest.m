@@ -76,8 +76,6 @@ for k1=1:NstepBis
     % V-L1 in SOS
     %======================================================================
     if k1==1
-        g = 1;
-        
         if ~isempty(Vin)
             V = Vin;
         elseif length(Ik) == 1
@@ -89,15 +87,15 @@ for k1=1:NstepBis
         
     elseif length(Ik) == 1
         % local V-s problem
-        [V,~] = roavstep(SP.f{Ik},p,x,zV,b,g,s0,s,L1,L2,sopts);
-        if isempty(V{1})
+        [V,~] = roavstep(SP.f{Ik},p,x,zV,b,g,s0,s{1},L1,L2,sopts);
+        if isempty(V)
             if strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',k1);
             end
             break;
         end
     else
-        V = sproavstep();
+        [V,~] = sproavstep(SP.f(Ik),H,p,x,zV,b,g,s0,s,L1,L2,sopts);
         if isempty(V)
             if strcmp(display,'on') %&& length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',k1);
@@ -106,7 +104,7 @@ for k1=1:NstepBis
         end
     end
     
-    for k2=1:length(SP)-length(Ik)
+    for k2=1:length(SP)-length(Ik)+1
         %==================================================================
         % Pre Gamma Step: Solve the problem max g s.t. for all i in Ik
         % {x:V(x) <= gamma} minus {x:hij(x) >= 0} f.a. j in J
@@ -116,16 +114,17 @@ for k1=1:NstepBis
         gopts.maxobj = gammamax;
         gpre = zeros(size(Ik));
         s = cell(length(Ik),2);
+        H = cell(length(Ik),1);
         for i=Ik
-            [~,Hi] = paths(SP,i,Ik);
-            [gbnds,s{Ik==i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,Hi,z2,zi,gopts);
+            [~,H{i}] = paths(SP,i,Ik);
+            [gbnds,s{Ik==i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{i},z2,zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
                     fprintf('pre gamma step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
                 end
                 break;
             end
-            gpre(Ik==i) = gbnds(1);
+            gpre(Ik==i) = gbnds(1)
         end
         gpre = min(gpre);
             
@@ -137,20 +136,24 @@ for k1=1:NstepBis
         %==================================================================
         I = adjacents(SP, Ik);
         gopts.maxobj = gammamax;
-        gmin = zeros(size(I));
+        dist = zeros(size(I));
         for i=I
             [~,Hi] = paths(SP,i,Ik);
-            [gbnds,~] = spcontain(Hi,V,[],[],[],gopts);
+            [gbnds,~] = upcontain(Hi,V,[],zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
-                    fprintf('min gamma step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
+                    fprintf('distance step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
                 end
                 break;
             end
-            gmin(I==i) = gbns(1);
+            dist(I==i) = gbnds(1)
         end
-        [gmin,ig] = min(gmin);
+        [gmin,ig] = min(dist);
         
+        % print results and proceed
+        if strcmp(display,'on') && length(Ik) < length(SP)
+            fprintf('iteration = %d-%d\t gpre = %4.6f\t gmin = %4.6f\t Ik = (%s)\n',k1,k2,gpre,gmin,num2str(Ik));
+        end
         if gpre > gmin
             next = I(ig);
             Ik = [Ik next];
@@ -176,7 +179,7 @@ for k1=1:NstepBis
 
     % print results and store iteration data
     if strcmp(display,'on')
-        fprintf('iteration = %d \t beta = %4.6f \t gamma = %4.6f \t Ik = (%s)\n',k1,b,g,num2str(Ik));
+        fprintf('iteration = %d\t beta = %4.6f\t gamma = %4.6f\t Ik = (%s)\n',k1,b,g,num2str(Ik));
     end
     iter(k1).V      = V;
     iter(k1).beta   = b;
