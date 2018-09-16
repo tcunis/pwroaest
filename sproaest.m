@@ -152,7 +152,7 @@ for k1=1:NstepBis
         
         % print results and proceed
         if strcmp(display,'on') && length(Ik) < length(SP)
-            fprintf('iteration = %d-%d\t gpre = %4.6f\t gmin = %4.6f\t Ik = (%s)\n',k1,k2,gpre,gmin,num2str(Ik));
+            fprintf('iteration = %d-%d\t gpre = %4.6f\t gmin = %4.6f\t Ik = (%s)\t J = (%s)\n',k1,k2,gpre,gmin,num2str(Ik),num2str(I));
         end
         if gpre > gmin
             next = I(ig);
@@ -183,7 +183,7 @@ for k1=1:NstepBis
     end
     iter(k1).V      = V;
     iter(k1).beta   = b;
-    iter(k1).gamma  = g;
+    iter(k1).gamma  = [g gpre gmin];
     iter(k1).s0     = s0;
     iter(k1).s1     = s{:,1};
     iter(k1).si     = s{:,2};
@@ -199,6 +199,6 @@ iter(biscount+1:end) = [];
 [~, idx] = max([iter.beta]);
 beta  = iter(idx).beta;
 V     = iter(idx).V;
-gamma = iter(idx).gamma;
+gamma = iter(idx).gamma(1);
 
 end
