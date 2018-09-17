@@ -74,6 +74,8 @@ end
 % default multiplier zi
 if ~exist('zi','var') || isempty(zi)
     zi = z;
+elseif iscell(zi)
+    zi = zi{end};
 end
 
 % ensure H is column vector

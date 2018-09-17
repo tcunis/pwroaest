@@ -66,6 +66,13 @@ else
     k = length(H);
 end
 
+% origin in cell
+if iscell(zi) && all(double(subs(H, x, zeros(size(x)))) <= 0)
+    zi = zi{1};
+elseif iscell(zi)
+    zi = zi{end};
+end
+
 %% Call GSOSOPT
 % to solve:
 %       max g such that
