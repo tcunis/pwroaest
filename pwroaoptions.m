@@ -97,7 +97,9 @@ methods
     
     % Set: zi
     function opt = set.zi(opt,value)
-        if  ismonom(value) && ~isa(value,'double')
+        if ismonom(value) && ~isa(value,'double')
+            opt.zi = {value};
+        elseif iscell(value) && ~isempty(value) && ismonom(value{1}) && ~isa(value{1},'double')
             opt.zi = value;
         else
             error('Multiplier for boundary condition must be a monomial and non-constant.');
