@@ -116,8 +116,8 @@ for k1=1:NstepBis
         s = cell(length(Ik),2);
         H = cell(length(Ik),1);
         for i=Ik
-            [~,H{i}] = paths(SP,i,Ik);
-            [gbnds,s{Ik==i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{i},z2,zi,gopts);
+            [~,H{Ik==i}] = paths(SP,i,Ik);
+            [gbnds,s{Ik==i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{Ik==i},z2,zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
                     fprintf('pre gamma step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
