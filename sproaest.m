@@ -140,7 +140,7 @@ for k1=1:NstepBis
         gopts.maxobj = gammamax;
         dist = zeros(size(I));
         for i=I
-            [~,Hi] = paths(SP,i,Ik);
+            [~,Hi] = paths(SP,i,union(Ik,I));
             [gbnds,~] = upcontain(Hi,V,[],zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
