@@ -87,7 +87,7 @@ for k1=1:NstepBis
         
     elseif length(Ik) == 1
         % local V-s problem
-        [V,~] = roavstep(SP.f{Ik},p,x,zV,b,g,s0,s{1},L1,L2,sopts);
+        [V,~] = roavstep(SP.f{Ik},p,x,zV,b,g,s0,s{Ik},L1,L2,sopts);
         if isempty(V)
             if strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',k1);
@@ -95,7 +95,7 @@ for k1=1:NstepBis
             break;
         end
     else
-        [V,~] = sproavstep(SP.f(Ik),H,p,x,zV,b,g,s0,s,L1,L2,sopts);
+        [V,~] = sproavstep(SP.f(Ik),H(Ik),p,x,zV,b,g,s0,s(Ik,:),L1,L2,sopts);
         if isempty(V)
             if strcmp(display,'on') %&& length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',k1);
@@ -104,6 +104,10 @@ for k1=1:NstepBis
         end
     end
     
+    % boundaries & multipliers
+    s = cell(length(SP),2);
+    H = cell(length(SP),1);
+
     for k2=1:length(SP)-length(Ik)+1
         %==================================================================
         % Pre Gamma Step: Solve the problem max g s.t. for all i in Ik
@@ -113,11 +117,9 @@ for k1=1:NstepBis
         %==================================================================
         gopts.maxobj = gammamax;
         gpre = zeros(size(Ik));
-        s = cell(length(Ik),2);
-        H = cell(length(Ik),1);
         for i=Ik
-            [~,H{Ik==i}] = paths(SP,i,Ik);
-            [gbnds,s{Ik==i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{Ik==i},z2,zi,gopts);
+            [~,H{i}] = paths(SP,i,Ik);
+            [gbnds,s{i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{i},z2,zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
                     fprintf('pre gamma step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
