@@ -49,7 +49,8 @@ gopts.minobj = 0;
 gammamax = roaopts.gammamax;
 betamax = roaopts.betamax;
 display = roaopts.display;
-Vin = roaopts.Vi0;
+Vin = roaopts.Vin;
+Ik = roaopts.Ik;
 
 % Vdeg = zV.maxdeg;
 Nsteps = NstepBis;
@@ -61,7 +62,10 @@ iter= struct('V',c0,'beta',c0,'gamma',c0,'s0',c0,'s',c0,'si',c0,'time',c0);
 % Lyapunov functions
 % V = cell(size(zV));
 
-Ik = 1; %TODO: find active domain at origin
+if isempty(Ik)
+    % find active domain at origin
+    [~,Ik] = double(subs(SP, x, zeros(size(x))));
+end
 
 %% Run V-s iteration
 fprintf('\n---------------Beginning spline V-s iteration\n');
@@ -79,10 +83,10 @@ for k1=1:NstepBis
         if ~isempty(Vin)
             V = Vin;
         elseif length(Ik) == 1
-            % Construct Lyap function from linearization of active domain
-            V=linstab(SP.f{Ik},x,Q);
+            % construct Lyap function from linearization of active domain
+            V = linstab(SP.f{Ik},x,Q);
         else
-            V=splinstab();
+            V = splinstab();
         end
         
     elseif length(Ik) == 1
@@ -118,6 +122,12 @@ for k1=1:NstepBis
         gopts.maxobj = gammamax;
         gpre = zeros(size(Ik));
         for i=Ik
+            if k2 > 1 && (i ~= next) && ~is_adjacent(SP,i,next)
+                gpre(Ik==i) = gpre2(Ik(1:end-1)==i);
+                continue;
+            end
+            
+            % else:
             [~,H{i}] = paths(SP,i,Ik);
             [gbnds,s{i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{i},z2,zi,gopts);
             if isempty(gbnds)
@@ -128,6 +138,9 @@ for k1=1:NstepBis
             end
             gpre(Ik==i) = gbnds(1)
         end
+        % store
+        gpre2 = gpre;
+        % take minimum
         gpre = min(gpre);
             
         %==================================================================
