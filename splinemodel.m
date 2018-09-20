@@ -69,7 +69,7 @@ methods
         % Returns adjacents j of node i and the respective boundary
         % conditions hij.
         
-        idx = 1:length(obj.adj);
+        idx = 1:length(obj);
         
         J = idx(obj.adj(i,:));
         H = obj.H(i,J);
@@ -87,7 +87,7 @@ methods
     function J = adjacents(obj, I)
         % Returns all adjacents j of I that are not already in I.
         
-        idx = 1:length(obj.adj);
+        idx = 1:length(obj);
         
         J = obj.adj(I,:);
            
@@ -100,7 +100,6 @@ methods
         
         H = obj.H;
     end
-        
     
     function obj = subs(obj, old, new)
         % See SUBS.
@@ -109,11 +108,18 @@ methods
         obj.f = cellfun(@(f) subs(f, old, new), obj.f, 'UniformOutput', false);
     end
     
-    function x = double(obj)
+    function [x,I] = double(obj)
+        % Determines active nodes I and returns double value of their
+        % functions.
+        %
         % See DOUBLE.
+        
+        idx = 1:length(obj);
         
         I = all(double(obj.H) <= 0, 2);
         x = double([obj.f{I}]);
+        
+        I = idx(I);
     end
     
     function L = length(obj)
