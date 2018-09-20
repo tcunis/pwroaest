@@ -25,19 +25,28 @@ function varargout = pwlinstab(f1, f2, phi, x, Q, opts)
 %       -Q:   postive definite parameter in the Lyapunov equations; must be
 %             either scalar or square matrix of the size of |x|, or empty. 
 %             [default = 1e-6]
-%       -opts:  SOS options structre; see SOSOPTIONS.
+%       -opts:  SOS options structure; see SOSOPTIONS.
 %
 % Outputs:
-%       -V:   quadratic Lyapunov function, V = x'*P*x
+%       -V:   common quadratic Lyapunov function, V = x'*P*x
+%       -V1,V2   multiple quadratic Lyapunov functions, Vi = x'*Pi*xi; 
+%                with phi(x) = 0 -> V1(x) = V2(x).
 %       -A1,A2:  linearizations of the piecewise systems around x=0
 %       -P:   positive definite solution of the Lyapunov equations; this 
 %             matrix is used to form the quadratic Lyapunov function. 
 %
 % If the linearization is not stable then V and P are returned as empty.
 %
+%% About
+%
+% * Author:     Torbjoern Cunis
+% * Email:      <mailto:torbjoern.cunis@onera.fr>
+% * Created:    2018-05-22
+% * Changed:    2018-06-30
+%
 %%
 
-assert(nargout ~= 3 && nargout <= 5, 'Undefined number of outputs (%g)', nargout);
+assert(nargout ~= 3 && nargout <= 5, 'Undefined number of outputs (%g).', nargout);
 
 
 if ~exist('Q', 'var') || isempty(Q)
