@@ -57,7 +57,7 @@ Nsteps = NstepBis;
 
 % initialize storage
 c0 = cell(Nsteps,1);
-iter= struct('V',c0,'beta',c0,'gamma',c0,'s0',c0,'s',c0,'si',c0,'time',c0);
+iter= struct('V',c0,'beta',c0,'gamma',c0,'Ik',c0,'s0',c0,'s',c0,'si',c0,'it2',c0,'time',c0);
 
 % Lyapunov functions
 % V = cell(size(zV));
@@ -71,8 +71,10 @@ end
 fprintf('\n---------------Beginning spline V-s iteration\n');
 biscount = 0;
 for k1=1:NstepBis
-    tic;
+    time = [];
+    time_tot = tic;
     
+    time_vstep = tic;
     %======================================================================
     % Find V step:
     % Hold s1, s2, si, b, g fixed and solve the Gamma Step and Beta Step
@@ -109,12 +111,17 @@ for k1=1:NstepBis
             break;
         end
     end
+    time.vstep = toc(time_vstep);
     
     % boundaries & multipliers
     s = cell(length(SP),2);
     H = cell(length(SP),1);
+    
+    time.gpre = zeros(1,length(SP)-length(Ik)+1);
+    time.gmin = zeros(1,length(SP)-length(Ik)+1);
 
     for k2=1:length(SP)-length(Ik)+1
+        time_gpre = tic;
         %==================================================================
         % Pre Gamma Step: Solve the problem max g s.t. for all i in Ik
         % {x:V(x) <= gamma} minus {x:hij(x) >= 0} f.a. j in J
@@ -145,12 +152,14 @@ for k1=1:NstepBis
                 gopts.maxobj = gbnds(2);
             end
         end
+        time.gpre(k2) = toc(time_gpre);
         % sort & store
         [gpre2,is] = sort(gpre);
         Ik = Ik(is);
         % take minimum
         gpre = min(gpre);
-            
+        
+        time_gmin = tic;
         %==================================================================
         % Min Gamma Step: Solve the problem max g s.t. for all i in adj(Ik)
         % {x:V(x) <= gamma} is contained in the union {x:hij(x) >= 0} f.a.
@@ -161,6 +170,12 @@ for k1=1:NstepBis
         gopts.maxobj = gammamax;
         dist = zeros(size(I));
         for i=I
+            if k2 > 1 && any(I2==i)
+                dist(I==i) = dist2(I2==i);
+                continue;
+            end
+            
+            % else:
             [~,Hi] = paths(SP,i,union(Ik,I));
             [gbnds,~] = upcontain(Hi,V,[],zi,gopts);
             if isempty(gbnds)
@@ -171,6 +186,11 @@ for k1=1:NstepBis
             end
             dist(I==i) = gbnds(1)
         end
+        time.gmin(k2) = toc(time_gmin);
+        % store
+        I2 = I;
+        dist2 = dist;
+        % find minimum
         [gmin,ig] = min(dist);
         
         % print results and proceed
@@ -186,6 +206,7 @@ for k1=1:NstepBis
         end
     end
     
+    time_beta = tic;
     %======================================================================
     % Beta Step: Solve the problem max b s.t.
     % {x:p(x) <= b} is contained in {x:V(x)<=g}
@@ -198,19 +219,25 @@ for k1=1:NstepBis
         end
         break;
     end
+    time.beta = toc(time_beta);
     b = bbnds(1);
 
     % print results and store iteration data
     if strcmp(display,'on')
         fprintf('iteration = %d\t beta = %4.6f\t gamma = %4.6f\t Ik = (%s)\n',k1,b,g,num2str(Ik));
     end
+    time.gpre = sum(time.gpre);
+    time.gmin = sum(time.gmin);
+    time.tot  = toc(time_tot);
     iter(k1).V      = V;
     iter(k1).beta   = b;
     iter(k1).gamma  = [g gpre gmin];
+    iter(k1).Ik     = Ik;
     iter(k1).s0     = s0;
     iter(k1).s1     = s{:,1};
     iter(k1).si     = s{:,2};
-    iter(k1).time   = toc;
+    iter(k1).it2    = k2;
+    iter(k1).time   = time;
     biscount = biscount+1;
 end
 if strcmp(display,'on')
