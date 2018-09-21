@@ -86,7 +86,9 @@ for k1=1:NstepBis
             % construct Lyap function from linearization of active domain
             V = linstab(SP.f{Ik},x,Q);
         else
-            V = splinstab();
+            H = cell(length(SP),1);
+            for i=Ik, [~,H{i}] = paths(SP,i,Ik); end
+            V = splinstab(SP.f(Ik),H(Ik),x,Q);
         end
         
     elseif length(Ik) == 1
@@ -123,7 +125,8 @@ for k1=1:NstepBis
         gpre = zeros(size(Ik));
         for i=Ik
             if k2 > 1 && (i ~= next) && ~is_adjacent(SP,i,next)
-                gpre(Ik==i) = gpre2(Ik(1:end-1)==i);
+                % alternative: check old H{i} is equal new H{i}
+                gpre(Ik==i) = gpre2(Ik(2:end)==i);
                 continue;
             end
             
@@ -137,9 +140,14 @@ for k1=1:NstepBis
                 break;
             end
             gpre(Ik==i) = gbnds(1)
+            
+            if gbnds(2) < gopts.maxobj
+                gopts.maxobj = gbnds(2);
+            end
         end
-        % store
-        gpre2 = gpre;
+        % sort & store
+        [gpre2,is] = sort(gpre);
+        Ik = Ik(is);
         % take minimum
         gpre = min(gpre);
             
@@ -171,7 +179,7 @@ for k1=1:NstepBis
         end
         if gpre > gmin
             next = I(ig);
-            Ik = [Ik next];
+            Ik = [next Ik];
         else
             g = gpre;
             break;
