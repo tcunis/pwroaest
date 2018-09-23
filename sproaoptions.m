@@ -48,7 +48,7 @@ methods
     end
     
     function opt = set.Ik(opt,value)
-        if ~isvector(value) || ~isinteger(value)
+        if ~isvector(value) || ~isnumeric(value)
             error('Ik must be vector of integers.');
         elseif min(value) < 1
             error('Ik must not contain non-positive values.');
