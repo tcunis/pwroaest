@@ -22,6 +22,10 @@ properties (Access=public)
     % spline functions
     f;
 end
+
+methods (Access=protected)
+    sp = combine(sp1,sp2,op);
+end
     
 methods
     function obj = splinemodel(varargin)
@@ -99,32 +103,6 @@ methods
         % further properties guaranteed.
         
         H = obj.H;
-    end
-    
-    function obj = subs(obj, old, new)
-        % See SUBS.
-        
-        obj.H = subs(obj.H, old, new);
-        obj.f = cellfun(@(f) subs(f, old, new), obj.f, 'UniformOutput', false);
-    end
-    
-    function [x,I] = double(obj)
-        % Determines active nodes I and returns double value of their
-        % functions.
-        %
-        % See DOUBLE.
-        
-        idx = 1:length(obj);
-        
-        I = all(double(obj.H) <= 0, 2);
-        x = double([obj.f{I}]);
-        
-        I = idx(I);
-    end
-    
-    function L = length(obj)
-        % See LENGTH.
-        L = length(obj.adj);
     end
     
     function obj = subsasgn(obj,s,varargin)
