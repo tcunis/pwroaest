@@ -167,17 +167,19 @@ for k1=1:NstepBis
         % with J = paths[k](i)
         %==================================================================
         I = adjacents(SP, Ik);
-        gopts.maxobj = gammamax;
+%         gopts.maxobj = gammamax;
+        opts = optimset('Display','notify');
         dist = zeros(size(I));
         for i=I
-            if k2 > 1 && any(I2==i)
-                dist(I==i) = dist2(I2==i);
-                continue;
-            end
+%             if k2 > 1 && any(I2==i)
+%                 dist(I==i) = dist2(I2==i);
+%                 continue;
+%             end
             
             % else:
-            [~,Hi] = paths(SP,i,union(Ik,I));
-            [gbnds,~] = upcontain(Hi,V,[],zi,gopts);
+            [~,Hi] = paths(SP,i,Ik);
+            [~,Hj] = paths(SP,i,I);
+            [gbnds,~] = spdistance(Hi,V,Hj,opts);
             if isempty(gbnds)
                 if strcmp(display,'on')
                     fprintf('distance step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
@@ -188,8 +190,8 @@ for k1=1:NstepBis
         end
         time.gmin(k2) = toc(time_gmin);
         % store
-        I2 = I;
-        dist2 = dist;
+%         I2 = I;
+%         dist2 = dist;
         % find minimum
         [gmin,ig] = min(dist);
         
