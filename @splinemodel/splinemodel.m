@@ -22,6 +22,11 @@ properties (Access=public)
     % spline functions
     f;
 end
+   
+properties (Access=private)
+    % dimension of spline functions
+    matdim;
+end
 
 methods (Access=protected)
     sp = combine(sp1,sp2,op);
@@ -42,7 +47,7 @@ methods
         
         obj.H(:,:) = 0;
     end
-    
+        
     function obj = set_adjacent(obj, i, j, h)
         % Sets nodes i and j to be adjacent with boundary condition h s.t.
         %
@@ -105,11 +110,25 @@ methods
         H = obj.H;
     end
     
+    function obj = set.f(obj,value)
+        % Set spline functions.
+        obj.matdim = size(value{end});
+        
+        obj.f = value;
+    end
+    
     function obj = subsasgn(obj,s,varargin)
         % See SUBSASGN.
         
-        if length(s) == 1 && strcmp(s.type, '()')
+        if length(s) == 1 && strcmp(s(1).type, '()')
+            warning('Use of SP(i,j) for adjacents is deprecated. Use SP.s(i,j) instead.');
             obj = obj.set_adjacent(s.subs{1}, s.subs{2}, varargin{:});
+        elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, 's') && strcmp(s(2).type, '()')
+            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, varargin{:});
+        elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '->') && strcmp(s(2).type, '()')
+            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, varargin{:});
+        elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '<-') && strcmp(s(2).type, '()')
+            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, -varargin{:});
         else
             obj = builtin('subsasgn', obj, s, varargin);
         end
