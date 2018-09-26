@@ -37,15 +37,16 @@ methods
         % Creates a new spline model.
         
         if length(varargin) == 1 && isnumeric(varargin{1})
-            obj.f = cell(1,varargin{1});
+            f = cell(1,varargin{1});
         else
-            obj.f = varargin;
+            f = varargin;
         end
         
-        obj.adj = false(length(obj.f));
+        obj.adj = false(length(f));
         obj.H = mpvar('h', size(obj.adj));
         
         obj.H(:,:) = 0;
+        obj.f = f;        
     end
         
     function obj = set_adjacent(obj, i, j, h)
@@ -114,23 +115,39 @@ methods
         % Set spline functions.
         obj.matdim = size(value{end});
         
+        assert(iscell(value) && length(value) == length(obj), 'Spline functions must be cell array of matching length.');
+        
         obj.f = value;
     end
     
     function obj = subsasgn(obj,s,varargin)
         % See SUBSASGN.
         
-        if length(s) == 1 && strcmp(s(1).type, '()')
+        if length(s) == 1 && strcmp(s(1).type, '()') && isa(varargin{1}, 'polynomial')
             warning('Use of SP(i,j) for adjacents is deprecated. Use SP.s(i,j) instead.');
-            obj = obj.set_adjacent(s.subs{1}, s.subs{2}, varargin{:});
+            obj = set_adjacent(obj, s.subs{1}, s.subs{2}, varargin{:});
+        elseif length(s) == 1 && strcmp(s(1).type, '()')
+            obj = subsasgn_idx(obj,s, varargin{:});
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, 's') && strcmp(s(2).type, '()')
-            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, varargin{:});
+            obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, varargin{:});
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '->') && strcmp(s(2).type, '()')
-            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, varargin{:});
+            obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, varargin{:});
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '<-') && strcmp(s(2).type, '()')
-            obj = obj.set_adjacent(s(2).subs{1}, s(2).subs{2}, -varargin{:});
-        else
+            obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, -varargin{:});
+        elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, 'f') && strcmp(s(2).type, '()')
             obj = builtin('subsasgn', obj, s, varargin);
+        else
+            obj = builtin('subsasgn', obj, s, varargin{:});
+        end
+    end
+    
+    function out = subsref(obj,s)
+        % See SUBSREF.
+        
+        if length(s) == 1 && strcmp(s.type, '()')
+            out = subsref_idx(obj,s);
+        else
+            out = builtin('subsref', obj, s);
         end
     end
 end
