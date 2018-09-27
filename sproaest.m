@@ -114,13 +114,13 @@ for k1=1:NstepBis
     time.vstep = toc(time_vstep);
     
     % boundaries & multipliers
-    s = cell(length(SP),2);
-    H = cell(length(SP),1);
+    s = cell(count(SP),2);
+    H = cell(count(SP),1);
     
-    time.gpre = zeros(1,length(SP)-length(Ik)+1);
-    time.gmin = zeros(1,length(SP)-length(Ik)+1);
+    time.gpre = zeros(1,count(SP)-length(Ik)+1);
+    time.gmin = zeros(1,count(SP)-length(Ik)+1);
 
-    for k2=1:length(SP)-length(Ik)+1
+    for k2=1:count(SP)-length(Ik)+1
         time_gpre = tic;
         %==================================================================
         % Pre Gamma Step: Solve the problem max g s.t. for all i in Ik

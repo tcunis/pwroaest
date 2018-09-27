@@ -23,9 +23,15 @@ properties (Access=public)
     f;
 end
    
-properties (Access=private)
+properties (SetAccess=private, Dependent)
     % dimension of spline functions
     matdim;
+    
+    % maximum polynomial degree
+    maxdeg;
+    
+    % minimum polynomial degree
+    mindeg;
 end
 
 methods (Access=protected)
@@ -79,7 +85,7 @@ methods
         % Returns adjacents j of node i and the respective boundary
         % conditions hij.
         
-        idx = 1:length(obj);
+        idx = 1:count(obj);
         
         J = idx(obj.adj(i,:));
         H = obj.H(i,J);
@@ -97,7 +103,7 @@ methods
     function J = adjacents(obj, I)
         % Returns all adjacents j of I that are not already in I.
         
-        idx = 1:length(obj);
+        idx = 1:count(obj);
         
         J = obj.adj(I,:);
            
@@ -113,17 +119,27 @@ methods
     
     function obj = set.f(obj,value)
         % Set spline functions.
-        obj.matdim = size(value{end});
-        
-        assert(iscell(value) && length(value) == length(obj), 'Spline functions must be cell array of matching length.');
+        assert(iscell(value) && length(value) == count(obj), 'Spline functions must be cell array of matching length.');
         
         obj.f = value;
+    end
+    
+    function md = get.matdim(obj)
+        md = size(obj.f{end});
+    end
+    
+    function md = get.maxdeg(obj)
+        md = max(cellfun(@(c) polynomial(c).maxdeg, obj.f));
+    end
+    
+    function md = get.mindeg(obj)
+        md = min(cellfun(@(c) polynomial(c).mindeg, obj.f));
     end
     
     function obj = subsasgn(obj,s,varargin)
         % See SUBSASGN.
         
-        if length(s) == 1 && strcmp(s(1).type, '()') && isa(varargin{1}, 'polynomial')
+        if length(s) == 1 && strcmp(s(1).type, '()') && length(s.subs) == 2 && isa(varargin{1}, 'polynomial')
             warning('Use of SP(i,j) for adjacents is deprecated. Use SP.s(i,j) instead.');
             obj = set_adjacent(obj, s.subs{1}, s.subs{2}, varargin{:});
         elseif length(s) == 1 && strcmp(s(1).type, '()')

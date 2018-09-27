@@ -4,7 +4,7 @@ function [x,I] = double(sp)
 %
 % See DOUBLE.
 
-idx = 1:length(sp);
+idx = 1:count(sp);
 
 I = all(double(sp.H) <= 0, 2);
 x = double([sp.f{I}]);

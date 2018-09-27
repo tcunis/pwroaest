@@ -16,8 +16,8 @@ if all(eqH(:))
     
 else
     % boundaries differ
-    k1 = length(sp1);
-    k2 = length(sp2);
+    k1 = count(sp1);
+    k2 = count(sp2);
     
     sp = splinemodel(k1*k2);
     
