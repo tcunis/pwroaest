@@ -57,8 +57,8 @@ function [beta,V,gamma,varargout] = pwroaest(f1,f2,phi,x,roaopts)
 % information from options
 p  = roaopts.p;
 zV = roaopts.zVi;
-z1 = roaopts.z1;
-z2 = roaopts.z2;
+z1 = roaopts.z1i;
+z2 = roaopts.z2i;
 zi = roaopts.zi;
 L2 = roaopts.L2;
 L1 = roaopts.L1;
@@ -70,6 +70,7 @@ gopts.minobj = 0;
 gammamax = roaopts.gammamax;
 betamax = roaopts.betamax;
 display = roaopts.display;
+debug   = roaopts.debug;
 Vin = roaopts.Vi0;
 
 % Vdeg = zV.maxdeg;
@@ -89,6 +90,8 @@ V = cell(size(zV));
 fprintf('\n---------------Beginning piecewise V-s iteration\n');
 biscount = 0;
 for i1=1:NstepBis
+    biscount = biscount+1;
+
     tic;
     
     %======================================================================
@@ -141,15 +144,15 @@ for i1=1:NstepBis
         % {x:V(x) <= gamma} is contained in {x:grad(V)*f1 < 0}
         %======================================================================
         gopts.maxobj = gammamax;
-        [gbnds,s] = pcontain(jacobian(V{1},x)*f1+L2,V{1},z2,gopts);
+        [gbnds,s] = pcontain(jacobian(V{1},x)*f1+L2,V{1},z2{1},gopts);
         if isempty(gbnds)
             if strcmp(display,'on')
                 fprintf('pre gamma step infeasible at iteration = %d\n',i1);
             end
             break;
         end
-        gpre = gbnds(1)
-
+        gpre = gbnds(1);
+        
         %======================================================================
         % Min Gamma Step: Solve the problem
         % {x:V(x) <= gamma} is contained in {x:phi(x)<=0}
@@ -162,7 +165,12 @@ for i1=1:NstepBis
             end
             break;
         end
-        gmin = gbnds(1)    
+        gmin = gbnds(1);
+        
+        if strcmp(debug,'on')
+            fprintf('debug: gpre = %4.6f \t gmin = %4.6f\n', gpre, gmin);
+        end
+
     else
         % origin at boundary
         % no local problem possible
@@ -189,7 +197,7 @@ for i1=1:NstepBis
         %==================================================================
         gopts.maxobj = gammamax;
         [gbnds,s1,si1] = pwpcontain(jacobian(V{1},x)*f1+L2,  ...
-                                    V{1}, phi, z2, zi{1}, gopts ...
+                                    V{1}, phi, z2{1}, zi{1}, gopts ...
         );
         if isempty(gbnds)
             if strcmp(display,'on')
@@ -197,7 +205,7 @@ for i1=1:NstepBis
             end
             break;
         end
-        g1 = gbnds(1)
+        g1 = gbnds(1);
 
         %==================================================================
         % Gamma 2 Step: Solve the following problems
@@ -209,7 +217,7 @@ for i1=1:NstepBis
         %==================================================================
         gopts.maxobj = gammamax;
         [gbnds,s2,si2] = pwpcontain(jacobian(V{end},x)*f2+L2,  ...
-                                    V{end}, -phi+L2, z2, zi{end}, gopts ...
+                                    V{end}, -phi+L2, z2{end}, zi{end}, gopts ...
         );
         if isempty(gbnds)
             if strcmp(display,'on')
@@ -217,11 +225,49 @@ for i1=1:NstepBis
             end
             break;
         end
-        g2 = gbnds(1)
+        g2 = gbnds(1);
 
+        if strcmp(debug,'on')
+            fprintf('debug: g1 = %4.6f \t g2 = %4.6f\n', g1, g2);
+        end        
+        
+        g  = min(g1,g2);
+    
         s  = [s1  s2 ];
         si = [si1 si2];
-        g  = min(g1,g2);
+        
+        if ~strcmp(roaopts.gammacheck, 'none')
+            %==============================================================
+            % Gamma Check Step: Solve the following problems
+            % {x:V(x) <= gamma} intersects {x:phi(x) <= 0} is contained 
+            % in {x:grad(V)*f1 < 0}
+            %
+            % and
+            %
+            % {x:V(x) <= gamma} intersects {x:phi(x) > 0} is contained 
+            % in {x:grad(V)*f2 < 0}
+            %
+            % with gamma = min(gamma1,gamma2)
+            %==============================================================
+            [s1,si1] = pwpcontain_check(jacobian(V{1},x)*f1+L2,  ...
+                                        V{1}-g, phi, z2{1}, zi{1}, gopts ...
+            );
+            [s2,si2] = pwpcontain_check(jacobian(V{end},x)*f2+L2,  ...
+                                        V{end}-g, -phi+L2, z2{end}, zi{end}, gopts ...
+            );
+
+            if isempty(s1) || isempty(s2)
+                if strcmp(display,'on')
+                    fprintf('gamma check step infeasible at iteration = %d\n',i1);
+                end
+                if strcmp(roaopts.gammacheck, 'check')
+                    break;
+                end
+            else    
+                s  = [s1  s2 ];
+                si = [si1 si2];
+            end
+        end
     end
 
     if g > .99*gammamax
@@ -239,14 +285,14 @@ for i1=1:NstepBis
         %                 -[(V - gamma) + (beta - p)*s0] in SOS, s0 in SOS
         %======================================================================
         gopts.maxobj = betamax;
-        [bbnds,s0]=pcontain(V{1}-g,p,z1,gopts);
+        [bbnds,s0]=pcontain(V{1}-g,p,z1{1},gopts);
         if isempty(bbnds)
             if strcmp(display,'on')
                 fprintf('beta step infeasible at iteration = %d\n',i1);
             end
             break;
         end
-        b = bbnds(1);
+        b1 = bbnds(1);
         
         b2 = [];
         sj = polynomial;
@@ -262,14 +308,14 @@ for i1=1:NstepBis
 %         [bbnds,sb1,sj1]=pwpcontain(V{1}-g1, ...
 %                                    p, phi, z1, zi, gopts ...
 %         );
-        [bbnds,sb1]=pcontain(V{1}-g,p,z1,gopts);
+        [bbnds,sb1]=pcontain(V{1}-g,p,z1{1},gopts);
         if isempty(bbnds)
             if strcmp(display,'on')
                 fprintf('beta 1 step infeasible at iteration = %d\n',i1);
             end
             break;
         end
-        b1 = bbnds(1)
+        b1 = bbnds(1);
         
         %======================================================================
         % Beta 2 Step: Solve the following problem
@@ -282,21 +328,26 @@ for i1=1:NstepBis
 %         [bbnds,sb2,sj2]=pwpcontain(V{2}-g2, ...
 %                                    p, -phi+L2, z1, zi, gopts ...
 %         );
-        [bbnds,sb2]=pcontain(V{2}-g,p,z1,gopts);
+        [bbnds,sb2]=pcontain(V{2}-g,p,z1{end},gopts);
         if isempty(bbnds)
             if strcmp(display,'on')
                 fprintf('beta 2 step infeasible at iteration = %d\n',i1);
             end
             break;
         end
-        b2 = bbnds(1)
+        b2 = bbnds(1);
+        
+        if strcmp(debug,'on')
+            fprintf('debug: b1 = %4.6f \t b2 = %4.6f\n', b1, b2);
+        end
         
         s0 = [sb1 sb2];
         sj = [0 0]; %sj = [sj1 sj2];
-        b  = min(b1,b2);
     end
-    
-    if b > .99*betamax && strcmp(display,'on')
+
+    b  = min([b1 b2]);
+
+    if b > .99*betamax && strcmp(debug,'on')
         fprintf('warning: result of beta step close to maximum (99%%) at iteration = %d\n',i1);
     end
     
@@ -311,7 +362,6 @@ for i1=1:NstepBis
     iter(i1).s     = s;
     iter(i1).si    = si;
     iter(i1).time  = toc;
-    biscount = biscount+1;
 end
 if strcmp(display,'on')
     fprintf('---------------Ending V-s iteration.\n');
@@ -319,13 +369,13 @@ end
     
 %% Outputs
 iter(biscount+1:end) = [];
-[~, idx] = max([iter.beta]);
+[~, idx] = max([iter.beta -1]);     % handle empty beta value(s)
 beta  = iter(idx).beta;
 V     = iter(idx).V;
 s0    = iter(idx).s0;
 s2    = iter(idx).s;
 si    = iter(idx).si;
-gamma = iter(idx).gamma(1);
+gamma = iter(idx).gamma(1:end-2);   % handle empty gamma value
 
 if nargout <= 4
     varargout = {iter};
