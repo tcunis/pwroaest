@@ -49,6 +49,7 @@ gopts.minobj = 0;
 gammamax = roaopts.gammamax;
 betamax = roaopts.betamax;
 display = roaopts.display;
+debug = roaopts.debug;
 Vin = roaopts.Vin;
 Ik = roaopts.Ik;
 
@@ -146,10 +147,14 @@ for k1=1:NstepBis
                 end
                 break;
             end
-            gpre(Ik==i) = gbnds(1)
+            gpre(Ik==i) = gbnds(1);
             
             if gbnds(2) < gopts.maxobj
                 gopts.maxobj = gbnds(2);
+            end
+            
+            if strcmp(debug,'on')
+                fprintf('debug: i = %d \t gpre = %4.6f\n', i, gpre(Ik==i));
             end
         end
         time.gpre(k2) = toc(time_gpre);
@@ -186,7 +191,11 @@ for k1=1:NstepBis
                 end
                 break;
             end
-            dist(I==i) = gbnds(1)
+            dist(I==i) = gbnds(1);
+            
+            if strcmp(debug,'on')
+                fprintf('debug: i = %d \t dist = %4.6f\n', i, dist(I==i));
+            end
         end
         time.gmin(k2) = toc(time_gmin);
         % store
