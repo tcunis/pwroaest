@@ -63,8 +63,8 @@ ev = cell(k,1);
 
 % linearize: xdot = Ai*x
 for i=1:k
-    A(i)  = plinearize(f{i},x);
-    ev(i) = ev(A{i});
+    A{i}  = plinearize(f{i},x);
+    ev{i} = eig(A{i});
 end
 
 if max(real(vertcat(ev{:}))) >= 0
