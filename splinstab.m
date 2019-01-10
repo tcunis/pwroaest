@@ -78,12 +78,13 @@ elseif nargout == 1
     [V,P] = sosdecvar('p', x);
     
     sosc = polyconstr(k+1);
-    sosc(1) = V >= x'*Q*x;
     
     for i=1:k
-        sosc(1+i) = x'*(A{i}'*P + P*A{i})*x - H{i} <= -x'*Q*x;
+        sosc(i) = x'*(A{i}'*P + P*A{i})*x - sum(H{i}) <= -x'*Q*x;
     end
-    
+
+    sosc(end) = V >= x'*Q*x;
+
     [info,dopt] = sosopt(sosc, x, opts);
     
     if info.feas
