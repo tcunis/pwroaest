@@ -26,7 +26,7 @@ function [beta,V,gamma,Ik,iter] = sproaest(SP,x,roaopts)
 % * Author:     Torbjoern Cunis
 % * Email:      <mailto:torbjoern.cunis@onera.fr>
 % * Created:    2018-09-09
-% * Changed:    2018-09-09
+% * Changed:    2019-01-11
 %
 %% See also
 %
@@ -35,7 +35,7 @@ function [beta,V,gamma,Ik,iter] = sproaest(SP,x,roaopts)
 
 % information from options
 p  = roaopts.p;
-zV = roaopts.zV; %TODO: multiple Lyapunov functions
+zV = roaopts.zVi;
 z1 = roaopts.z1;
 z2 = roaopts.z2;
 zi = roaopts.zi;
@@ -50,7 +50,7 @@ gammamax = roaopts.gammamax;
 betamax = roaopts.betamax;
 display = roaopts.display;
 debug = roaopts.debug;
-Vin = roaopts.Vin;
+Vin = roaopts.Vi0;
 Ik = roaopts.Ik;
 
 % Vdeg = zV.maxdeg;
@@ -58,10 +58,15 @@ Nsteps = NstepBis;
 
 % initialize storage
 c0 = cell(Nsteps,1);
-iter= struct('V',c0,'beta',c0,'gamma',c0,'Ik',c0,'s0',c0,'s',c0,'si',c0,'it2',c0,'time',c0);
+iter= struct('V',c0,'beta',c0,'gamma',c0,'Ik',c0,'s0',c0,'s',c0,'si',c0,'it2',c0,'count',c0,'time',c0);
 
 % Lyapunov functions
-% V = cell(size(zV));
+V = cell(size(zV));
+if length(zV) > 1
+    c = @(i) i;
+else
+    c = @(~) 1;
+end
 
 if isempty(Ik)
     % find active domain at origin
@@ -84,42 +89,49 @@ for k1=1:NstepBis
     %======================================================================
     if k1==1
         if ~isempty(Vin)
-            V = Vin;
+            V(c(Ik)) = Vin;
         elseif length(Ik) == 1
             % construct Lyap function from linearization of active domain
-            V = linstab(SP.f{Ik},x,Q);
+            V{c(Ik)} = linstab(SP.f{Ik},x,Q);
         else
-            H = cell(length(SP),1);
-            for i=Ik, [~,H{i}] = paths(SP,i,Ik); end
-            V = splinstab(SP.f(Ik),H(Ik),x,Q);
+            H = cell(count(SP),1);
+            A = false(count(SP));
+            for i=Ik, [J,H{i}] = paths(SP,i,Ik); A(i,Ik) = ismember(Ik,J); end
+            [V{c(Ik)}] = splinstab(SP.f(Ik),H(Ik),x,Q,A(Ik,Ik));
         end
         
     elseif length(Ik) == 1
         % local V-s problem
-        [V,~] = roavstep(SP.f{Ik},p,x,zV,b,g,s0,s{Ik},L1,L2,sopts);
-        if isempty(V)
+        V{c(Ik)} = roavstep(SP.f{Ik},p,x,zV,b,g,sb{c(Ik)},s{Ik},L1,L2,sopts);
+        if isempty(V{c(Ik)})
             if strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',k1);
             end
             break;
         end
     else
-        [V,~] = sproavstep(SP.f(Ik),H(Ik),p,x,zV,b,g,s0,s(Ik,:),L1,L2,sopts);
-        if isempty(V)
-            if strcmp(display,'on') %&& length(V) == 1
+        [V{c(Ik)}] = sproavstep(SP.f(Ik),H(Ik),p,x,zV,beta(c(Ik)),g,sb(c(Ik)),s(Ik,:),A(Ik,Ik),L1,L2,roaopts);
+        if isempty(V{c(1)})
+            if strcmp(display,'on') && length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',k1);
+            elseif strcmp(display,'on')
+                fprintf('multiple V-step infeasible at iteration %d\n',k1);
             end
             break;
         end
     end
     time.vstep = toc(time_vstep);
     
-    % boundaries & multipliers
+    % boundaries, adjacents, & multipliers
     s = cell(count(SP),2);
     H = cell(count(SP),1);
+    A = false(count(SP));
     
     time.gpre = zeros(1,count(SP)-length(Ik)+1);
     time.gmin = zeros(1,count(SP)-length(Ik)+1);
+    time.next = zeros(1,count(SP)-length(Ik)+1);
+    
+    quota = 0;
 
     for k2=1:count(SP)-length(Ik)+1
         time_gpre = tic;
@@ -133,14 +145,13 @@ for k1=1:NstepBis
         gpre = zeros(size(Ik));
         for i=Ik
             if k2 > 1 && (i ~= next) && ~is_adjacent(SP,i,next)
-                % alternative: check old H{i} is equal new H{i}
                 gpre(Ik==i) = gpre2(Ik(2:end)==i);
                 continue;
             end
             
             % else:
-            [~,H{i}] = paths(SP,i,Ik);
-            [gbnds,s{i,:}] = spcontain(jacobian(V,x)*SP.f{i}+L2,V,H{i},z2,zi,gopts);
+            [J,H{i}] = paths(SP,i,Ik);
+            [gbnds,s{i,:}] = spcontain(jacobian(V{c(i)},x)*SP.f{i}+L2,V{c(i)},H{i},z2,zi,gopts);
             if isempty(gbnds)
                 if strcmp(display,'on')
                     fprintf('pre gamma step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
@@ -152,6 +163,11 @@ for k1=1:NstepBis
             if gbnds(2) < gopts.maxobj
                 gopts.maxobj = gbnds(2);
             end
+
+            % adjacents matrix for multiple V-step
+            A(i,Ik) = ismember(Ik,J);
+
+            quota = quota + length(H{i}) + 1;
             
             if strcmp(debug,'on')
                 fprintf('debug: i = %d \t gpre = %4.6f\n', i, gpre(Ik==i));
@@ -182,16 +198,21 @@ for k1=1:NstepBis
 %             end
             
             % else:
-            [~,Hi] = paths(SP,i,Ik);
-            [~,Hj] = paths(SP,i,I);
-            [gbnds,~] = spdistance(Hi,V,Hj,opts);
-            if isempty(gbnds)
-                if strcmp(display,'on')
-                    fprintf('distance step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
+            [J,Hj] = paths(SP,i,Ik);
+            [~,Hi] = paths(SP,i,I);
+            
+            distV = zeros(c(length(J)),1);
+            for j=c(J)
+                [gbnds,~] = spdistance(Hj,V{j},Hi,opts);
+                if isempty(gbnds)
+                    if strcmp(display,'on')
+                        fprintf('distance step for domain %d infeasible at iteration = %d-%d.\n', i, k1, k2);
+                    end
+                    break;
                 end
-                break;
+                distV(c(J)==j) = gbnds(1);
             end
-            dist(I==i) = gbnds(1);
+            dist(I==i) = min(distV);
             
             if strcmp(debug,'on')
                 fprintf('debug: i = %d \t dist = %4.6f\n', i, dist(I==i));
@@ -208,30 +229,66 @@ for k1=1:NstepBis
         if strcmp(display,'on') && length(Ik) < length(SP)
             fprintf('iteration = %d-%d\t gpre = %4.6f\t gmin = %4.6f\t Ik = (%s)\t J = (%s)\n',k1,k2,gpre,gmin,num2str(Ik),num2str(I));
         end
+        
+        time_next = tic;
+        
         if gpre > gmin
-            next = I(ig);
+            next = I(ig);                
             Ik = [next Ik];
+            
+            if length(V) > 1
+                % find viable Vnext
+                [I,H{next}] = paths(SP,next,Ik);
+                A(next,Ik) = ismember(Ik,I);
+                % symmetric adjacents
+                for i=I
+                    [J,H{i}] = paths(SP,i,Ik);
+                    A(i,Ik) = ismember(Ik,J);
+                end
+                
+                % use quadratic Lyapunov-candidate in first iteration
+                z = zV{next};
+                V{next} = sproavnext(V(Ik),H(Ik),x,A(Ik,Ik),z,zi);
+                if isempty(V{next})
+                    if strcmp(display,'on')
+                        fprintf('next V-step infeasible at iteration %d-%d\n',k1,k2);
+                    end
+                    break;
+                end
+            end
         else
             g = gpre;
             break;
         end
+        
+        time.next(k2) = toc(time_next);
     end
     
     time_beta = tic;
-    %======================================================================
-    % Beta Step: Solve the problem max b s.t.
-    % {x:p(x) <= b} is contained in {x:V(x)<=g}
-    %======================================================================
-    gopts.maxobj = betamax;
-    [bbnds,s0] = pcontain(V-g,p,z1,gopts);
-    if isempty(bbnds)
-        if strcmp(display,'on')
-            fprintf('beta step infeasible at iteration = %d\n', k1);
+    
+    % pseudo-radii & multipliers
+    beta = zeros(length(V),1);
+    sb = cell(length(V),1);
+    
+    for i=c(Ik)
+        %======================================================================
+        % Beta Step: Solve the problem max b s.t.
+        % {x:p(x) <= b} is contained in {x:V(x)<=g}
+        %======================================================================
+        gopts.maxobj = betamax;
+        [bbnds,sb{i}] = pcontain(V{i}-g,p,z1,gopts);
+        if isempty(bbnds)
+            if strcmp(display,'on')
+                fprintf('beta step infeasible at iteration = %d\n', k1);
+            end
+            break;
         end
-        break;
+        beta(i) = bbnds(1);
     end
+    
     time.beta = toc(time_beta);
-    b = bbnds(1);
+    
+    b = min(beta(c(Ik)));
 
     % print results and store iteration data
     if strcmp(display,'on')
@@ -239,16 +296,18 @@ for k1=1:NstepBis
     end
     time.gpre = sum(time.gpre);
     time.gmin = sum(time.gmin);
+    time.next = sum(time.next);
     time.tot  = toc(time_tot);
     iter(k1).V      = V;
     iter(k1).beta   = b;
     iter(k1).gamma  = [g gpre gmin];
     iter(k1).Ik     = Ik;
-    iter(k1).s0     = s0;
+    iter(k1).s0     = sb;
     iter(k1).s      = s(Ik,1);
     iter(k1).si     = s(Ik,2);
     iter(k1).it2    = k2;
     iter(k1).time   = time;
+    iter(k1).count  = quota;
     biscount = biscount+1;
 end
 if strcmp(display,'on')

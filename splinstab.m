@@ -1,4 +1,4 @@
-function varargout = splinstab(f, H, x, Q, opts)
+function varargout = splinstab(f, H, x, Q, Adj, opts)
 % Performs a linear stability analysis for a switched polynomial system,
 %
 %           |
@@ -40,7 +40,7 @@ function varargout = splinstab(f, H, x, Q, opts)
 % * Author:     Torbjoern Cunis
 % * Email:      <mailto:torbjoern.cunis@onera.fr>
 % * Created:    2018-09-20
-% * Changed:    2018-09-20
+% * Changed:    2019-01-11
 %
 %%
 
@@ -49,6 +49,9 @@ assert(nargout == 1 || nargout == length(f), 'Undefined number of outputs (%g).'
 
 if ~exist('Q', 'var') || isempty(Q)
     Q = 1e-6;
+end
+if ~exist('Adj', 'var') || isempty(Adj)
+    Adj = [];
 end
 if ~exist('opts', 'var')
     opts = sosoptions;
@@ -62,7 +65,7 @@ A  = cell(k,1);
 ev = cell(k,1);
 
 % linearize: xdot = Ai*x
-for i=1:k
+for i=I
     A{i}  = plinearize(f{i},x);
     ev{i} = eig(A{i});
 end
@@ -77,7 +80,7 @@ elseif nargout == 1
     % for common Lyapunov function
     [V,P] = sosdecvar('p', x);
     
-    sosc = polyconstr(k+1);
+    sosc = polynomial(zeros(k+1,1)) == 0;
     
     for i=1:k
         sosc(i) = x'*(A{i}'*P + P*A{i})*x - sum(H{i}) <= -x'*Q*x;
@@ -92,7 +95,37 @@ elseif nargout == 1
         varargout{1} = x'*P*x;
     end
 else
-    error('Multiple Lyapunov functions not yet implemented for splines.');
+    % if A1, A2 are stable solve LMI
+    %   A1'*P + P1*A1 < 0
+    %   A2'*P + P2*A2 < 0
+    % for multiple Lyapunov function
+    V = cell(k,1);
+    P = cell(k,1);
+    
+    soscP = polynomial(zeros(k,1)) == 0;
+    soscV = polynomial(zeros(k,1)) == 0;
+    
+    % continuity decision variables
+    z  = monomials(x, 0:2);
+    
+    for i=1:k
+        [V{i},P{i}] = sosdecvar(['p' num2str(i)], x);
+        
+        soscP(i) = x'*(A{i}'*P{i} + P{i}*A{i})*x <= x'*Q*x;
+        soscV(i) = V{i} >= x'*Q*x;
+    end
+     
+    soscH = sproav_continuity(V, H, Adj, z);
+    
+    sosc = [soscP; soscV; soscH];
+    
+    [info,dopt] = sosopt(sosc, x, opts);
+    
+    if info.feas
+        for i=1:k
+            varargout{i} = subs(V{i},dopt);
+        end
+    end
 end
 
 end

@@ -1,4 +1,4 @@
-function varargout = sproavstep(f,H,p,x,z,beta,gamma,s0,s,L1,L2,roaopts)
+function varargout = sproavstep(f,H,p,x,z,beta,gamma,sb,s,Adj,L1,L2,roaopts)
 % Solves the V-s step of the spline ROA iteration.
 %
 %% Usage & description
@@ -40,7 +40,7 @@ function varargout = sproavstep(f,H,p,x,z,beta,gamma,s0,s,L1,L2,roaopts)
 % * Author:     Torbjoern Cunis
 % * Email:      <mailto:torbjoern.cunis@onera.fr>
 % * Created:    2018-09-10
-% * Changed:    2018-09-10
+% * Changed:    2019-01-11
 %
 %% See also
 %
@@ -49,8 +49,12 @@ function varargout = sproavstep(f,H,p,x,z,beta,gamma,s0,s,L1,L2,roaopts)
 
 if isa(roaopts, 'sosoptions')
     opts = roaopts;
+    
+    zi = 1;
 else
     opts = roaopts.sosopts;
+    
+    zi = roaopts.zi{end};
 end
 
 % number of domains covered
@@ -60,36 +64,82 @@ assert(length(H) == k && size(s,1) == k, ...
        'Number of functions, boundaries, and multipliers must be equal to number of domains.' ...
 );
 
-% common Lyapunov function
-varargout = cell(1,2);
+if length(z) == 1
+    % common Lyapunov function
+    varargout = cell(1,2);
 
-% Lyapunov decision variable
-[V,c] = polydecvar('c',z);
+    % Lyapunov decision variable
+    [V,c] = polydecvar('c',z{:});
 
-%% Common V-s feasibility problem
-% prepare constraint variable
-sosconstr = polynomial(zeros(k+2,1)) == 0;
+    %% Common V-s feasibility problem
+    % prepare constraint variable
+    sosconstr = polynomial(zeros(k+2,1)) == 0;
 
-% V-L1 in SOS
-sosconstr(1) = V >= L1;
+    % V-L1 in SOS
+    sosconstr(1) = V >= L1;
 
-% {x: p(x) <= b} is contained in {x: V(x) <= g}
-sosconstr(2) = -((V-gamma) + s0*(beta-p)) >= 0;
+    % {x: p(x) <= b} is contained in {x: V(x) <= g}
+    sosconstr(2) = -((V-gamma) + sb{:}*(beta-p)) >= 0;
 
-% {x: V(x) <= g} is contained in {x: grad(V)*f < 0}
-gradV = jacobian(V,x);
+    % {x: V(x) <= g} is contained in {x: grad(V)*f < 0}
+    gradV = jacobian(V,x);
 
-for i=1:k
-    % -( pa + (g-p2)*s - H'*si ) in SOS
-    sosconstr(2+i) = -(gradV*f{i} + L2 + s{i,1}*(gamma-V) - H{i}'*s{i,2}) >= 0;
+    for i=1:k
+        % -( pa + (g-p2)*s - H'*si ) in SOS
+        sosconstr(2+i) = -(gradV*f{i} + L2 + s{i,1}*(gamma-V) - H{i}'*s{i,2}) >= 0;
+    end
+
+    % solve problem
+    [info,dopt] = sosopt(sosconstr,x,opts);
+
+    % output
+    if info.feas
+        varargout{1}   = subs(V,dopt);
+        varargout{end} = subs(c,dopt);
+    end
+else
+    % multiple Lyapunov functions
+    varargout = cell(1,2*k);
+    
+    % Lyapunov decision variable
+    V = cell(k,1); c = cell(k,1);
+    
+    % prepare constraint variable
+    soscV = polynomial(zeros(k,1)) == 0;
+    soscB = polynomial(zeros(k,1)) == 0;
+    soscG = polynomial(zeros(k,1)) == 0;
+    
+    %% Multiple V-s feasibility problem
+    for i=1:k
+        [V{i},c{i}] = polydecvar(['c' num2str(i)],z{i});
+        
+        % Vi-L1 in SOS
+        soscV(i) = V{i} >= L1;
+        
+        % {x: p(x) <= bi} is contained in {x: Vi(x) <= g}
+        soscB(i) = -((V{i}-gamma) + sb{i}*(beta(i)-p)) >= 0;
+
+        % {x: Vi(x) <= g} is contained in {x: grad(Vi)*fi < 0}
+        gradVi = jacobian(V{i},x);
+
+        % -( pa + (g-p2)*s - H'*si ) in SOS
+        soscG(i) = -(gradVi*f{i} + L2 + s{i,1}*(gamma-V{i}) - H{i}'*s{i,2}) >= 0;
+    end
+    
+    % continuity
+    soscH = sproav_continuity(V, H, Adj, zi);
+    
+    sosconstr = [soscV; soscB; soscG; soscH];
+    
+    % solve problem
+    [info,dopt] = sosopt(sosconstr,x,opts);
+    
+    % output
+    if info.feas
+        for i=1:k
+            varargout{i}   = subs(V{i},dopt);
+            varargout{k+i} = subs(c{i},dopt);
+        end
+    end
+    
 end
-
-% solve problem
-[info,dopt] = sosopt(sosconstr,x,opts);
-
-% output
-if info.feas
-    varargout{1}   = subs(V,dopt);
-    varargout{end} = subs(c,dopt);
-end
-
