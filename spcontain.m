@@ -85,10 +85,7 @@ end
 %       p2*s - pa + t*s + H'*si in SOS
 t   = pvar('g');
 s0  = sosdecvar('c',z);
-si  = polynomial(zeros(size(H)));
-for i=1:k
-    si(i) = sosdecvar(['c' num2str(i)],zi);
-end
+si  = sosmdecvar('d',zi,k);
 
 
 sosc = [
