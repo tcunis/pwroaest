@@ -1,4 +1,4 @@
-function [gbar,V,gamma,K,iter] = pwreach(f1,f2,phi,xbar,x,roaopts)
+function [Ibar,V,gamma,K,iter] = pwreach(f1,f2,phi,xbar,x,roaopts)
 % Estimates lower bound of piece-wise region of attraction.
 %
 %% Usage & description
@@ -99,13 +99,10 @@ Nsteps = NstepBis;
 
 % initialize storage
 c0 = cell(Nsteps,1);
-iter= struct('V',c0,'K',c0,'gbar',c0,'gamma',c0,'s',c0,'si',c0,'sg',c0,'sj',c0,'time',c0,'aux',c0);
+iter= struct('V',c0,'K',c0,'Ibar',c0,'gamma',c0,'s',c0,'si',c0,'sg',c0,'sj',c0,'time',c0,'aux',c0);
 
 % boundary condition at origin
 phi0 = double(subs(phi, x, zeros(size(x))));
-
-% boundary condition at target
-phi1 = double(subs(phi, x, xbar));
 
 % Lyapunov functions
 V = cell(size(zV));
@@ -131,7 +128,9 @@ for i1=1:NstepBis
         % local K-V-s problem
         K = roaKstep(f1,c,[],x,u,zK,V{1},[],g,[],s,sg,L1,L2,sopts);
         if isempty(K)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('local K-step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -139,7 +138,9 @@ for i1=1:NstepBis
     else
         K = pwroaKstep(f1,f2,phi,c,[],x,u,zK,V,[],g,[],s,si,sg,sj,L1,L2,roaopts);
         if isempty(K)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('common K-step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -178,9 +179,11 @@ for i1=1:NstepBis
         
     elseif gpre <= gmin
         % local V-s problem
-        [V{1},~] = reachvstep(fK1,cK,xbar,x,zV{1},gbar,g,[],s,sg,L1,L2,sopts);
+        [V{1},~] = reachvstep(fK1,cK,b*xbar,x,zV{1},gbar,g,[],s,sg,L1,L2,sopts);
         if isempty(V{1})
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -188,9 +191,11 @@ for i1=1:NstepBis
             V{2} = V{1};
         end
     else
-        [V{:}] = pwreachvstep(fK1,fK2,phi,cK,xbar,x,zV,gbar,g,[],s,si,sg,sj,L1,L2,roaopts);
+        [V{:}] = pwreachvstep(fK1,fK2,phi,cK,b*xbar,x,zV,gbar,g,[],s,si,sg,sj,L1,L2,roaopts);
         if isempty(V{1})
-            if strcmp(display,'on') && length(V) == 1
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on') && length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',i1);
             elseif strcmp(display,'on')
                 fprintf('multiple V-step infeasible at iteration = %d\n',i1);
@@ -207,7 +212,9 @@ for i1=1:NstepBis
         gopts.maxobj = gammamax;
         [gbnds,s] = pcontain(jacobian(V{1},x)*fK1+L2,V{1},z2{1},gopts);
         if isempty(gbnds)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('pre gamma step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -221,7 +228,9 @@ for i1=1:NstepBis
         gopts.maxobj = gammamax;
         [gbnds,~] = pcontain(phi,V{1},[],gopts);
         if isempty(gbnds)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('min gamma step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -261,7 +270,9 @@ for i1=1:NstepBis
                                     V{1}, phi, z2{1}, zi{1}, gopts ...
         );
         if isempty(gbnds)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('gamma 1 step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -281,7 +292,9 @@ for i1=1:NstepBis
                                     V{end}, -phi+L2, z2{end}, zi{end}, gopts ...
         );
         if isempty(gbnds)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('gamma 2 step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -299,7 +312,9 @@ for i1=1:NstepBis
     end
 
     if gstb > .99*gammamax
-        if strcmp(display,'on')
+        if strcmp(debug,'on')
+            keyboard;
+        elseif strcmp(display,'on')
             fprintf('result of gamma step close to maximum (99%%) at iteration = %d\n',i1);
         end
         break;
@@ -312,7 +327,9 @@ for i1=1:NstepBis
         %==================================================================
         [gcons,sg] = pcontain(cK,V{1},zg{1},gopts);
         if isempty(gcons)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('constraint step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -329,10 +346,18 @@ for i1=1:NstepBis
         
         %==================================================================
         % Level set at target
-        % gbar = V(xbar)
+        % max b s.t. V(b*xbar) <= gamma
         %==================================================================
-        gbar = subs(V{1},x,xbar);
-
+        [b,gbar] = xcontain(V{1},x,g,xbar); %gbar = subs(V{1},x,xbar);
+        if isempty(b)
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
+                fprintf('common target step infeasible at iteration = %d\n',i1);
+            end
+            break
+        end
+        
     else
         %==================================================================
         % Constraint 1 Step: Solve the following problem
@@ -341,7 +366,9 @@ for i1=1:NstepBis
         %==================================================================
         [gcons,sg1,sj1] = pwpcontain(cK,V{1},phi,zg{1},zi{1},gopts);
         if isempty(gcons)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('constraint 1 step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -356,7 +383,9 @@ for i1=1:NstepBis
         %==================================================================
         [gcons,sg2,sj2] = pwpcontain(cK,V{2},-phi+L2,zg{end},zi{end},gopts);
         if isempty(gcons)
-            if strcmp(display,'on')
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
                 fprintf('constraint 2 step infeasible at iteration = %d\n',i1);
             end
             break;
@@ -374,27 +403,38 @@ for i1=1:NstepBis
         sg = [sg1 sg2];
         sj = [sj1 sj2];
         
-        %======================================================================
+        %==================================================================
         % Level set 1 at target
-        % gbar <= V1(xbar)
-        %======================================================================
-        gb1 = subs(V{1},x,xbar);
+        % max b s.t. V1(b*xbar) <= gamma
+        %==================================================================
+        [b1,gb1] = xcontain(V{1},x,g,xbar);
         
-        %======================================================================
+        %==================================================================
         % Level set 2 at target
-        % gbar <= V2(xbar)
-        %======================================================================
-        gb2 = subs(V{2},x,xbar);
+        % max b s.t. V2(b*xbar) <= gamma
+        %==================================================================
+        [b2,gb2] = xcontain(V{1},x,g,xbar);
         
-        if strcmp(debug,'on')
-            fprintf('debug: gb1 = %4.6f \t gb2 = %4.6f\n', gb1, gb2);
+        if isempty(b1) || isempty(b2)
+            if strcmp(debug,'on')
+                keyboard;
+            elseif strcmp(display,'on')
+                fprintf('multiple target step infeasible at iteration = %d\n',i1);
+            end
+            break
         end
         
-        if phi1 <= 0
+        if strcmp(debug,'on')
+            fprintf('debug: b1 = %4.6f \t b2 = %4.6f\n', b1, b2);
+        end
+        
+        if double(subs(phi,x,b1*xbar)) <= 0
             % target in LHS
+            b = b1;
             gbar = gb1;
         else
             % target in RHS
+            b = b2;
             gbar = gb2;
         end
     end
@@ -434,18 +474,18 @@ for i1=1:NstepBis
     
     % Print results and store iteration data
     if strcmp(display,'on')
-        fprintf('iteration = %d  \t gbar = %4.6f \t gamma = %4.6f\n',i1,gbar,g);
+        fprintf('iteration = %d  \t Ibar = %4.6f \t gamma = %4.6f\n',i1,b,g);
     end
     iteration.V     = V;
     iteration.K     = K;
-    iteration.gbar  = double(gbar);
+    iteration.Ibar  = b;
     iteration.gamma = g;
 %     iteration.s0    = s0;
     iteration.s     = s;
     iteration.si    = si;
     iteration.sg    = sg;
     iteration.sj    = sj;
-    iteration.aux   = struct('gstb',gstb,'gcon',gcon,'gpre',gpre,'gmin',gmin);
+    iteration.aux   = struct('gstb',gstb,'gcon',gcon,'gpre',gpre,'gmin',gmin,'gbar',gbar);
     iteration.time  = toc;
     iter(i1) = iteration;
     if strcmp(log,'step')
@@ -458,9 +498,9 @@ end
     
 %% Outputs
 iter(biscount+1:end) = [];
-[~, idx] = min([iter.gbar +Inf]);     % handle empty beta value(s)
+[~, idx] = max([iter.Ibar -1]);     % handle empty beta value(s)
 result = iter(idx);
-gbar  = result.gbar;
+Ibar  = result.Ibar;
 V     = result.V;
 K     = result.K;
 gamma = result.gamma;   % handle empty gamma value
