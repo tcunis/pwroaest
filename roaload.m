@@ -1,4 +1,4 @@
-function [beta,V,gamma,K,iter] = roaload(varargin)
+function [Ibar,V,gamma,K,iter] = roaload(varargin)
 % Loads stored ROA estimation results.
 %
 %% Usage & description
@@ -79,7 +79,7 @@ end
 S = load([path{:} filename], '-mat');
 
 iter  = S.iter;
-beta  = S.beta;
+Ibar  = S.Ibar;
 V     = S.V;
 gamma = S.gamma;
 K     = S.K;
