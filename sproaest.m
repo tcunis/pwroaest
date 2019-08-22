@@ -237,24 +237,32 @@ for k1=1:NstepBis
             Ik = [next Ik];
             
             if length(V) > 1
+                Hnew = H;
+                
                 % find viable Vnext
-                [I,H{next}] = paths(SP,next,Ik);
+                [I,Hnew{next}] = paths(SP,next,Ik);
                 A(next,Ik) = ismember(Ik,I);
                 % symmetric adjacents
                 for i=I
-                    [J,H{i}] = paths(SP,i,Ik);
+                    [J,Hnew{i}] = paths(SP,i,Ik);
                     A(i,Ik) = ismember(Ik,J);
                 end
                 
                 % use quadratic Lyapunov-candidate in first iteration
                 z = zV{next};
-                V{next} = sproavnext(V(Ik),H(Ik),x,A(Ik,Ik),z,zi);
+                V{next} = sproavnext(V(Ik),Hnew(Ik),x,A(Ik,Ik),z,zi);
                 if isempty(V{next})
+                    % re-compute all Lyapunov functions
+                    [V{c(Ik)}] = sproavstep(SP.f(Ik),H(Ik),p,x,zV,beta(c(Ik)),g,sb(c(Ik)),s(Ik,:),A(Ik,Ik),L1,L2,roaopts,Hnew(Ik));
+                end
+                if isempty(V{next}) 
                     if strcmp(display,'on')
                         fprintf('next V-step infeasible at iteration %d-%d\n',k1,k2);
                     end
                     break;
                 end
+                
+                H = Hnew;
             end
         else
             g = gpre;

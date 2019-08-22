@@ -1,4 +1,4 @@
-function varargout = sproavstep(f,H,p,x,z,beta,gamma,sb,s,Adj,L1,L2,roaopts)
+function varargout = sproavstep(f,H,p,x,z,beta,gamma,sb,s,Adj,L1,L2,roaopts,Hnew)
 % Solves the V-s step of the spline ROA iteration.
 %
 %% Usage & description
@@ -57,6 +57,10 @@ else
     zi = roaopts.zi{end};
 end
 
+if ~exist('Hnew','var')
+    Hnew = H;
+end
+
 % number of domains covered
 k = length(f);
 
@@ -106,8 +110,8 @@ else
     
     % prepare constraint variable
     soscV = polynomial(zeros(k,1)) == 0;
-    soscB = polynomial(zeros(k,1)) == 0;
-    soscG = polynomial(zeros(k,1)) == 0;
+    soscB = cell(k,1); %polynomial(zeros(k,1)) == 0;
+    soscG = cell(k,1); %polynomial(zeros(k,1)) == 0;
     
     %% Multiple V-s feasibility problem
     for i=1:k
@@ -116,20 +120,25 @@ else
         % Vi-L1 in SOS
         soscV(i) = V{i} >= L1;
         
+        if isempty(sb{i})
+            % compute Lyapunov-function for new domain
+            continue
+        end
+        
         % {x: p(x) <= bi} is contained in {x: Vi(x) <= g}
-        soscB(i) = -((V{i}-gamma) + sb{i}*(beta(i)-p)) >= 0;
+        soscB{i} = -((V{i}-gamma) + sb{i}*(beta(i)-p)) >= 0;
 
         % {x: Vi(x) <= g} is contained in {x: grad(Vi)*fi < 0}
         gradVi = jacobian(V{i},x);
 
         % -( pa + (g-p2)*s - H'*si ) in SOS
-        soscG(i) = -(gradVi*f{i} + L2 + s{i,1}*(gamma-V{i}) - H{i}'*s{i,2}) >= 0;
+        soscG{i} = -(gradVi*f{i} + L2 + s{i,1}*(gamma-V{i}) - H{i}'*s{i,2}) >= 0;
     end
     
     % continuity
-    soscH = sproav_continuity(V, H, Adj, zi);
+    soscH = sproav_continuity(V, Hnew, Adj, zi);
     
-    sosconstr = [soscV; soscB; soscG; soscH];
+    sosconstr = vertcat(soscV, soscB{:}, soscG{:}, soscH);
     
     % solve problem
     [info,dopt] = sosopt(sosconstr,x,opts);
