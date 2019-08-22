@@ -15,8 +15,8 @@ soscR = cell(k,k);
 I2 = false(k);
 for i=I
     for j=I(Adj(i,:))
-        ra = sosmdecvar(sprintf('%s%s%d%d',cstr,'a',i,j), z, length(H{i}));
-        rb = sosmdecvar(sprintf('%s%s%d%d',cstr,'b',i,j), z, length(H{j}));
+        ra = sosmdecvar(sprintf('%s%s%d_%d',cstr,'a',i,j), z, length(H{i}));
+        rb = sosmdecvar(sprintf('%s%s%d_%d',cstr,'b',i,j), z, length(H{j}));
 
         soscH{i,j} = -((V{i}-V{j}) - H{i}'*ra - H{j}'*rb) >= 0;
         soscR{i,j} = [ra; rb] >= 0;
