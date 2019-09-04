@@ -149,7 +149,8 @@ methods
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '->') && strcmp(s(2).type, '()')
             obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, varargin{:});
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, '<-') && strcmp(s(2).type, '()')
-            obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, -varargin{:});
+            error('Use of <- is forbidden for spline systems.')
+%             obj = set_adjacent(obj, s(2).subs{1}, s(2).subs{2}, -varargin{:});
         elseif length(s) == 2 && strcmp(s(1).type, '.') && strcmp(s(1).subs, 'f') && strcmp(s(2).type, '()')
             obj = builtin('subsasgn', obj, s, varargin);
         else
