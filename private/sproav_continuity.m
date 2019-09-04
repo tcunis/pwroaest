@@ -18,7 +18,7 @@ for i=I
         ra = sosmdecvar(sprintf('%s%s%d_%d',cstr,'a',i,j), z, length(H{i}));
         rb = sosmdecvar(sprintf('%s%s%d_%d',cstr,'b',i,j), z, length(H{j}));
 
-        soscH{i,j} = -((V{i}-V{j}) - H{i}'*ra - H{j}'*rb) >= 0;
+        soscH{i,j} = -((V{j}-V{i}) - H{i}'*ra - H{j}'*rb) >= 0;
         soscR{i,j} = [ra; rb] >= 0;
         I2(i,j) = true;
     end

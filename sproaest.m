@@ -102,7 +102,7 @@ for k1=1:NstepBis
         
     elseif length(Ik) == 1
         % local V-s problem
-        V{c(Ik)} = roavstep(SP.f{Ik},p,x,zV,b,g,sb{c(Ik)},s{Ik},L1,L2,sopts);
+        V{c(Ik)} = roavstep(SP.f{Ik},p,x,zV{c(Ik)},b,g,sb{c(Ik)},s{Ik},L1,L2,sopts);
         if isempty(V{c(Ik)})
             if strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',k1);
@@ -110,8 +110,8 @@ for k1=1:NstepBis
             break;
         end
     else
-        [V{c(Ik)}] = sproavstep(SP.f(Ik),H(Ik),p,x,zV,beta(c(Ik)),g,sb(c(Ik)),s(Ik,:),A(Ik,Ik),L1,L2,roaopts);
-        if isempty(V{c(1)})
+        [V{c(Ik)}] = sproavstep(SP.f(Ik),H(Ik),p,x,zV(c(Ik)),beta(c(Ik)),g,sb(c(Ik)),s(Ik,:),A(Ik,Ik),L1,L2,roaopts);
+        if isempty(V{c(Ik(1))})
             if strcmp(display,'on') && length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',k1);
             elseif strcmp(display,'on')
