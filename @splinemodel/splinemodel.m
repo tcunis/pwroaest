@@ -39,6 +39,8 @@ methods (Access=protected)
 end
     
 methods
+    [flag,msg] = assertIsWellFormed(obj);
+    
     function obj = splinemodel(varargin)
         % Creates a new spline model.
         

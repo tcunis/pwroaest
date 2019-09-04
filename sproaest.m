@@ -33,6 +33,9 @@ function [beta,V,gamma,Ik,iter] = sproaest(SP,x,roaopts)
 % See PWROAEST, SPROAOPTIONS, PCONTAIN, PWPCONTAIN
 %%
 
+assert(isa(SP,'splinemodel'), 'sproaest requires spline model object (got: %s).', class(SP));
+assertIsWellFormed(SP);
+
 % information from options
 p  = roaopts.p;
 zV = roaopts.zVi;
