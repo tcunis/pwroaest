@@ -65,7 +65,7 @@ A  = cell(k,1);
 ev = cell(k,1);
 
 % linearize: xdot = Ai*x
-for i=I
+for i=1:k
     A{i}  = plinearize(f{i},x);
     ev{i} = eig(A{i});
 end
