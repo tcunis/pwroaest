@@ -85,14 +85,16 @@ debug   = roaopts.debug;
 log = roaopts.log;
 logpath = roaopts.logpath;
 
-if ~strcmp(log,'none') && ~exist(logpath{1},'file')
+if strcmp(log,'none') 
+    % nothing to do
+elseif ~exist(logpath{1},'file')
     [success,info] = mkdir(logpath{1});
     if success && ~isempty(info)
         warning(info)
     elseif ~success
         error(info)
     end
-elseif exist(logpath{1},'file')
+else
     delete([logpath{1} '/*.mat']);
 end
 
@@ -126,9 +128,9 @@ for i1=1:NstepBis
         if ~isempty(Kin)
             K(:) = Kin;
         else
-            K(:) = zeros(size(u));
+            K{:} = zeros(size(u));
         end
-    elseif isempty(zK)
+    elseif isempty(zK{1})
         % nothing to do
         
     elseif gpre <= gmin
@@ -504,10 +506,9 @@ for i1=1:NstepBis
         save([logpath{:} sprintf('iter%d',i1)], '-struct', 'iteration');
     end
 end
-if strcmp(display,'on')
-    fprintf('---------------Ending V-s iteration.\n');
-end
-    
+fprintf('---------------Ending V-s iteration.\n');
+
+
 %% Outputs
 iter(biscount+1:end) = [];
 [~, idx] = max([iter.beta -1]);     % handle empty beta value(s)
