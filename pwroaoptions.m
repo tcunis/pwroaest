@@ -25,7 +25,7 @@ classdef pwroaoptions < conroaoptions
 % * Author:     Torbjoern Cunis
 % * Email:      <mailto:torbjoern.cunis@onera.fr>
 % * Created:    2018-05-22
-% * Changed:    2019-10-28
+% * Changed:    2019-11-01
 %
 %% See also
 %
@@ -62,7 +62,23 @@ properties
 end
 
 methods
-    function opt = pwroaoptions(f1, f2, phi, x, varargin)
+    function opt = pwroaoptions(f1, f2, varargin)
+        % pwroaoptions(f, x, [u], ...)
+        if ispvar(f2) && ...
+                (nargin < 3 || ispvar(varargin{1}) || ischar(varargin{1}))
+            % fall back to single ROA estimation
+            x = f2;
+            
+            phi = -Inf;
+            f2 = [];
+        else
+            phi = varargin{1};
+            x = varargin{2};
+            
+            varargin(1:2) = [];
+        end
+            
+        
         opt@conroaoptions(f1, x, varargin{:});
         
         opt.f1  = f1;

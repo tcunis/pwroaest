@@ -54,6 +54,17 @@ function [beta,V,gamma,varargout] = pwroaest(f1,f2,phi,x,roaopts)
 % See ROAEST, PWROAOPTIONS, PCONTAIN, PWPCONTAIN
 %%
 
+if isa(f1, 'pwroaoptions')
+    % pwroaest(roaopts)
+    roaopts = f1;
+    
+    f1 = roaopts.f1;
+    f2 = roaopts.f2;
+
+    phi = roaopts.phi;
+    x = roaopts.x;
+end
+
 % information from options
 p  = roaopts.p;
 zV = roaopts.zVi;
@@ -224,6 +235,7 @@ for i1=1:NstepBis
         end
         gpre = gbnds(1);
         
+        if ~isempty(f2)
         %======================================================================
         % Min Gamma Step: Solve the problem
         % {x:V(x) <= gamma} is contained in {x:phi(x)<=0}
@@ -237,6 +249,10 @@ for i1=1:NstepBis
             break;
         end
         gmin = gbnds(1);
+        else
+            % fall back to single ROA estimation
+            gmin = +Inf;
+        end
         
         if strcmp(debug,'on')
             fprintf('debug: gpre = %4.6f \t gmin = %4.6f\n', gpre, gmin);
@@ -254,7 +270,7 @@ for i1=1:NstepBis
         gstb = gpre;
         si = polynomial;
 
-        if strcmp(display,'on')
+        if strcmp(display,'on') && ~isempty(f2)
             fprintf('Local polynomial problem at iteration = %d\n',i1);
         end
     else
