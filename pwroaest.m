@@ -78,6 +78,13 @@ L1 = roaopts.L1;
 Q  = roaopts.Q;
 c  = roaopts.c;
 
+if isempty(p)
+    ellipsoid = false;
+    p = x'*x*.5e2;
+else
+    ellipsoid = true;
+end
+
 NstepBis = roaopts.NstepBis;
 sopts = roaopts.sosopts;
 gopts = roaopts.gsosopts;
@@ -146,7 +153,7 @@ for i1=1:NstepBis
         
     elseif gpre <= gmin
         % local K-V-s problem
-        K{1} = roaKstep(f1,c,p,x,u,zK{1},V{1},b,g,s0,s,sg,L1,L2,sopts);
+        K{1} = roaKstep(f1,c,p,x,u,zK{1},V{1},b,g,s0,s,sg,L1,L2,tau,sopts);
         if isempty(K{1})
             if strcmp(display,'on')
                 fprintf('local K-step infeasible at iteration = %d\n',i1);
@@ -156,7 +163,7 @@ for i1=1:NstepBis
             K{2} = K{1};
         end
     else
-        [K{:}] = pwroaKstep(f1,f2,phi,c,p,x,u,zK,V,[b1 b2],g,s0,s,si,sg,sj,L1,L2,roaopts);
+        [K{:}] = pwroaKstep(f1,f2,phi,c,p,x,u,zK,V,[b1 b2],g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
         if isempty(K{1})
             if strcmp(display,'on')
                 fprintf('common K-step infeasible at iteration = %d\n',i1);
@@ -198,7 +205,12 @@ for i1=1:NstepBis
         
     elseif gpre <= gmin
         % local V-s problem
-        [V{1},~] = conroavstep(fK1,cK{1},p,x,zV{1},b,g,s0,s,sg,L1,L2,tau,sopts);
+        if ~ellipsoid
+            s0 = sosdecvar('c1',z1{1});
+            [V{1},~] = conroavstep(fK1,cK{1},V{1},x,zV{1},g,g,s0,s,sg,L1,L2,tau,sopts);
+        else
+            [V{1},~] = conroavstep(fK1,cK{1},p,x,zV{1},b,g,s0,s,sg,L1,L2,tau,sopts);
+        end
         if isempty(V{1})
             if strcmp(display,'on')
                 fprintf('local V-step infeasible at iteration = %d\n',i1);
@@ -208,7 +220,12 @@ for i1=1:NstepBis
             V{2} = V{1};
         end
     else
-        [V{:}] = pwroavstep(fK1,fK2,phi,cK,p,x,zV,[b1 b2],g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
+        if ~ellipsoid
+            s0 = [sosdecvar('c1',z1{1}); sosdecvar('c2',z1{end})];
+            [V{:}] = pwroavstep(fK1,fK2,phi,cK,[V{:}],x,zV,g,g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
+        else
+            [V{:}] = pwroavstep(fK1,fK2,phi,cK,p,x,zV,[b1 b2],g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
+        end
         if isempty(V{1})
             if strcmp(display,'on') && length(V) == 1
                 fprintf('common V-step infeasible at iteration = %d\n',i1);
@@ -355,6 +372,7 @@ for i1=1:NstepBis
         
         g = min([gstb, gcon]);
         
+        if ~isempty(p)
         %======================================================================
         % Beta Step: Solve the following problem
         % {x: p(x)) <= beta} is contained in {x: V(x) <= gamma}
@@ -370,6 +388,10 @@ for i1=1:NstepBis
             break;
         end
         b1 = bbnds(1);
+        else
+            s0 = [];
+            b1 = i1-NstepBis;
+        end
         
         b2 = [];
     else
@@ -527,7 +549,7 @@ fprintf('---------------Ending V-s iteration.\n');
 
 %% Outputs
 iter(biscount+1:end) = [];
-[~, idx] = max([iter.beta -1]);     % handle empty beta value(s)
+[~, idx] = max([iter.beta -Inf]);     % handle empty beta value(s)
 result = iter(idx);
 beta  = result.beta;
 V     = result.V;
