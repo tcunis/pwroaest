@@ -151,7 +151,7 @@ for i1=1:NstepBis
     elseif isempty(zK{1})
         % nothing to do
         
-    elseif gpre <= gmin
+    elseif gpre < gmin
         % local K-V-s problem
         K{1} = roaKstep(f1,c,p,x,u,zK{1},V{1},b,g,s0,s,sg,L1,L2,tau,sopts);
         if isempty(K{1})
@@ -203,7 +203,7 @@ for i1=1:NstepBis
             [V{:}]=pwlinstab(fK1,fK2,phi,x,tau);
         end
         
-    elseif gpre <= gmin
+    elseif gpre < gmin
         % local V-s problem
         if ~ellipsoid
             s0 = sosdecvar('c1',z1{1});
@@ -282,7 +282,7 @@ for i1=1:NstepBis
         gmin = [];
     end
     
-    if gpre <= gmin
+    if gpre < gmin
         % estimated region of attraction does not reach boundary
         gstb = gpre;
         si = polynomial;
@@ -350,7 +350,7 @@ for i1=1:NstepBis
         break;
     end 
     
-    if (length(V) == 1 && length(cK) == 1) || any(gpre <= gmin)
+    if (length(V) == 1 && length(cK) == 1) || any(gpre < gmin)
         %==================================================================
         % Constraint Step: Solve the following problem
         % {x: V(x) <= gamma} is contained in {x: c(x) <= 0}
@@ -493,7 +493,7 @@ for i1=1:NstepBis
     end
     
     
-    if ~strcmp(roaopts.gammacheck, 'none') && gpre > gmin
+    if ~strcmp(roaopts.gammacheck, 'none') && gpre >= gmin
         %==============================================================
         % Gamma Check Step: Solve the following problems
         % {x:V(x) <= gamma} intersects {x:phi(x) <= 0} is contained 
