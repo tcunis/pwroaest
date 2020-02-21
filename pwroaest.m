@@ -221,7 +221,7 @@ for i1=1:NstepBis
         end
     else
         if ~ellipsoid
-            s0 = [sosdecvar('c1',z1{1}); sosdecvar('c2',z1{end})];
+            s0 = [sosdecvar('cs1',z1{1}); sosdecvar('cs2',z1{end})];
             [V{:}] = pwroavstep(fK1,fK2,phi,cK,[V{:}],x,zV,g,g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
         else
             [V{:}] = pwroavstep(fK1,fK2,phi,cK,p,x,zV,[b1 b2],g,s0,s,si,sg,sj,L1,L2,tau,roaopts);
@@ -258,7 +258,7 @@ for i1=1:NstepBis
         % {x:V(x) <= gamma} is contained in {x:phi(x)<=0}
         %======================================================================
         gopts.maxobj = gammamax;
-        [gbnds,~] = pcontain(phi,V{1},[],gopts);
+        [gbnds,~] = pcontain(phi,V{1},monomials(x,0:1),gopts);
         if isempty(gbnds)
             if strcmp(display,'on')
                 fprintf('min gamma step infeasible at iteration = %d\n',i1);
@@ -372,6 +372,8 @@ for i1=1:NstepBis
         
         g = min([gstb, gcon]);
         
+        iteration.time = toc;
+        
         if ~isempty(p)
         %======================================================================
         % Beta Step: Solve the following problem
@@ -434,6 +436,8 @@ for i1=1:NstepBis
         
         sg = [sg1 sg2];
         sj = [sj1 sj2];
+        
+        iteration.time = toc;
         
         %======================================================================
         % Beta 1 Step: Solve the following problem
@@ -538,7 +542,7 @@ for i1=1:NstepBis
     iteration.sg    = sg;
     iteration.sj    = sj;
     iteration.aux   = struct('gstb',gstb,'gcon',gcon,'gpre',gpre,'gmin',gmin);
-    iteration.time  = toc;
+%     iteration.time  = toc;
     iter(i1) = iteration;
     if strcmp(log,'step')
         save([logpath{:} sprintf('iter%d',i1)], '-struct', 'iteration');
