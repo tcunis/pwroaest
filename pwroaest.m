@@ -398,6 +398,7 @@ for i1=1:NstepBis
         
         g = min([gstb, gcon]);
         
+        % store execution time before beta step
         iteration.time = toc;
         
         if ~isempty(p)
@@ -463,6 +464,7 @@ for i1=1:NstepBis
         sg = [sg1 sg2];
         sj = [sj1 sj2];
         
+        % store execution time before piecewise beta steps
         iteration.time = toc;
         
         %======================================================================
@@ -568,7 +570,12 @@ for i1=1:NstepBis
     iteration.sg    = sg;
     iteration.sj    = sj;
     iteration.aux   = struct('gstb',gstb,'gcon',gcon,'gpre',gpre,'gmin',gmin);
-%     iteration.time  = toc;
+    if ellipsoid
+        % store execution time after beta step(s)
+        % unless in set-inclusion mode
+        iteration.time  = toc;
+    end
+
     iter(i1) = iteration;
     if strcmp(log,'step')
         save([logpath{:} sprintf('iter%d',i1)], '-struct', 'iteration');
