@@ -1,4 +1,4 @@
-classdef splinemodel
+classdef (InferiorClasses={?polynomial}) splinemodel
 % Graph-representation of a spline model.
 %
 %% About
