@@ -7,7 +7,7 @@ assert(isa(sp1,'splinemodel'), 'First argument must be a spline model.');
 assert(isa(sp2,'splinemodel'), 'Second argument must be a spline model.');
 assert(isa(op,'function_handle'), 'Operator must be a function handle.');
 
-eqH = isequal(sp1.getH, sp2.getH);
+eqH = pisequal(sp1.getH, sp2.getH);
 
 if all(eqH(:))
     % spline models of equal boundaries
@@ -20,6 +20,8 @@ else
     k2 = count(sp2);
     
     sp = splinemodel(k1*k2);
+    
+    cb = reshape(1:count(sp),k1,k2);
     
     for i1=1:k1
         for i2=1:k2
@@ -39,10 +41,17 @@ else
 end
 
 
-function idx = cb(i1,i2)
-% Returns combined index of i1 and i2.
+% function idx = cb(i1,i2)
+% % Returns combined index of i1 and i2.
+% 
+%     idx = (i1-1)*k1 + i2;
+% end
 
-    idx = (i1-1)*k1 + i2;
+function tf = pisequal(a,b)
+% Comparison of polynomials A and B.
+
+    c = @(z) z(:);
+    tf = isequal(size(a),size(b)) && all(c(isequal(a,b)));
 end
 
 end
